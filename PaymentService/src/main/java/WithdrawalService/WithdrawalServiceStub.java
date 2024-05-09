@@ -4,6 +4,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.math.BigDecimal;
 
 import static WithdrawalService.WithdrawalService.WithdrawalState.COMPLETED;
 import static WithdrawalService.WithdrawalService.WithdrawalState.FAILED;
@@ -12,7 +13,7 @@ public class WithdrawalServiceStub implements WithdrawalService {
     private final ConcurrentMap<WithdrawalId, Withdrawal> requests = new ConcurrentHashMap<>();
 
     @Override
-    public void requestWithdrawal(WithdrawalId id, Address address, Double amount) { // Please substitute T with prefered type
+    public void requestWithdrawal(WithdrawalId id, Address address, BigDecimal amount) { // Please substitute T with prefered type
         final var existing = requests.putIfAbsent(id, new Withdrawal(finalState(), finaliseAt(), address, amount));
         if (existing != null && !Objects.equals(existing.address, address) && !Objects.equals(existing.amount, amount))
             throw new IllegalStateException("Withdrawal request with id[%s] is already present".formatted(id));
@@ -34,7 +35,7 @@ public class WithdrawalServiceStub implements WithdrawalService {
         return request.finalState();
     }
 
-    record Withdrawal(WithdrawalState state, long finaliseAt, Address address, Double amount) {
+    record Withdrawal(WithdrawalState state, long finaliseAt, Address address, BigDecimal amount) {
         public WithdrawalState finalState() {
             return finaliseAt <= System.currentTimeMillis() ? state : PROCESSING;
         }

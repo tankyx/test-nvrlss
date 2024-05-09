@@ -1,6 +1,7 @@
 package WithdrawalService;
 
 import java.util.UUID;
+import java.math.BigDecimal;
 
 public interface WithdrawalService {
     /**
@@ -10,7 +11,7 @@ public interface WithdrawalService {
      * @param amount - an amount to withdraw (please replace T with type you want to use)
      * @throws IllegalArgumentException in case there's different address or amount for given id
      */
-    void requestWithdrawal(WithdrawalId id, Address address, Double amount); // Please substitute T with prefered type
+    void requestWithdrawal(WithdrawalId id, Address address, BigDecimal amount); // Please substitute T with prefered type
 
     /**
      * Return current state of withdrawal
