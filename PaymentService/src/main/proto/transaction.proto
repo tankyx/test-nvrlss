@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.example.grpc";
+option java_outer_classname = "TransactionServiceProto";
+
+message UserRequest {
+  string userId = 1;
+  string recipientId = 2;
+  double amount = 3;
+}
+
+message WithdrawRequest {
+  string userId = 1;
+  double amount = 2;
+  string externalAddress = 3;
+}
+
+message TransactionResponse {
+  string transactionId = 1;
+  string status = 2;
+}
+
+message TransactionStatusRequest {
+  string transactionId = 1;
+}
+
+message StatusUpdate {
+  string transactionId = 1;
+  string status = 2;
+}
+
+service TransactionService {
+  rpc SendMoney (UserRequest) returns (TransactionResponse);
+  rpc Withdraw (WithdrawRequest) returns (TransactionResponse);
+  rpc StreamTransactionStatus (TransactionStatusRequest) returns (stream StatusUpdate);
+}
