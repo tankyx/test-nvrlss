@@ -9,18 +9,40 @@ import com.TransactionProcess.grpc.*;
 import io.grpc.stub.StreamObserver;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionServiceImplBase {
     private final Map<String, StreamObserver<StatusUpdate>> statusObservers = new ConcurrentHashMap<>();
     private final InMemory memory = new InMemory();
     private final AtomicLong transactionCounter = new AtomicLong(1);
+    private final ConcurrentHashMap<UUID, String> pendingUUIDs = new ConcurrentHashMap<>();
     private final WithdrawalService withdrawalService = new WithdrawalServiceStub();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     public TransactionServiceImpl() {
+        // Start a background job to check and finalize transactions
+        startFinalizationScheduler();
+    }
+
+    private void startFinalizationScheduler() {
+        scheduler.scheduleAtFixedRate(this::finalizeWithdrawals, 0, 10, TimeUnit.MILLISECONDS);
+    }
+
+    private void finalizeWithdrawals() {
+        for (Map.Entry<UUID, String> entry : pendingUUIDs.entrySet()) {
+            WithdrawalService.WithdrawalId withdrawalId = new WithdrawalService.WithdrawalId(entry.getKey());
+            WithdrawalService.WithdrawalState state = withdrawalService.getRequestState(withdrawalId);
+
+            if (state != WithdrawalService.WithdrawalState.PROCESSING) {
+                pendingUUIDs.remove(entry.getKey());
+
+                notifyObservers(entry.getValue(), state.toString());
+            }
+        }
     }
 
     @Override
@@ -47,7 +69,7 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
     public void sendMoneyInternally(InternalTransferRequest request, StreamObserver<TransactionResponse> responseObserver) {
         User sender = memory.getUser(request.getSenderId());
         User recipient = memory.getUser(request.getRecipientId());
-        String transactionId = "TX" + transactionCounter.getAndIncrement();
+        String transactionId = "ITX" + transactionCounter.getAndIncrement();
 
         //Both users exist
         if (sender != null && recipient != null) {
@@ -105,7 +127,7 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
 
     @Override
     public void sendMoneyExternally(ExternalWithdrawalRequest request, StreamObserver<TransactionResponse> responseObserver) {
-        String transactionId = "TX" + transactionCounter.getAndIncrement();
+        String transactionId = "ETX" + transactionCounter.getAndIncrement();
 
         if (!memory.userExists(request.getUserId())) {
             TransactionResponse response = TransactionResponse.newBuilder()
@@ -120,7 +142,7 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         User sender = memory.getUser(request.getUserId());
         BigDecimal transactionAmount = BigDecimal.valueOf(request.getAmount());
 
-        memory.createTransaction(transactionId, sender.getId(), request.getExternalAddress(), transactionAmount);
+        memory.createTransactionWithAddress(transactionId, sender.getId(), request.getExternalAddress(), transactionAmount);
 
         // If the sender balance is not sufficient, set the transaction state to FAILED
         if (sender.getBalance().compareTo(transactionAmount) < 0) {
@@ -128,8 +150,10 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         } else {
             memory.getTransaction(transactionId).setState(WithdrawalState.PROCESSING);
             sender.setBalance(sender.getBalance().subtract(transactionAmount));
-            withdrawalService.requestWithdrawal(new WithdrawalService.WithdrawalId(UUID.randomUUID()),
+            UUID withdrawalId = UUID.randomUUID();
+            withdrawalService.requestWithdrawal(new WithdrawalService.WithdrawalId(withdrawalId),
                     new WithdrawalService.Address(request.getExternalAddress()), BigDecimal.valueOf(request.getAmount()));
+            pendingUUIDs.put(withdrawalId, transactionId);
         }
         WithdrawalState status = memory.getTransaction(transactionId).getState();
         notifyObservers(transactionId, status.toString());
@@ -155,9 +179,15 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
                 .build();
         StreamObserver<StatusUpdate> observer = statusObservers.get(transactionId);
         if (observer != null) {
-            observer.onNext(update);
-            if ("COMPLETED".equals(status) || "FAILED".equals(status)) {
-                observer.onCompleted();
+            try {
+                observer.onNext(update);
+                if ("COMPLETED".equals(status) || "FAILED".equals(status)) {
+                    observer.onCompleted();
+                    statusObservers.remove(transactionId);
+                }
+            } catch (Exception e) {
+                // Log the error and handle the observer cleanup
+                observer.onError(e);
                 statusObservers.remove(transactionId);
             }
         }

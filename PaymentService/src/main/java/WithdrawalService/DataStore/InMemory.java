@@ -38,6 +38,14 @@ public class InMemory {
         Transaction transaction = new Transaction(id, senderId, receiverId, amount, WithdrawalState.PROCESSING);
         return transactions.putIfAbsent(transaction.getId(), transaction) == null;
     }
+
+    public boolean createTransactionWithAddress(String id, String senderId, String address, BigDecimal amount) {
+        if (!users.containsKey(senderId)) {
+            return false;
+        }
+        Transaction transaction = new Transaction(id, senderId, address, amount, WithdrawalState.PROCESSING);
+        return transactions.putIfAbsent(transaction.getId(), transaction) == null;
+    }
     public void addTransaction(Transaction transaction) {
         transactions.putIfAbsent(transaction.getId(), transaction);
     }
