@@ -20,11 +20,6 @@ public class User {
     String surname;
     BigDecimal balance;
 
-    /*
-    * Need to generate a wallet address for the user
-    * using the generated id and using a unique salt to it
-    * and storing it as a base64 encoded string
-    */
     public User(String name, String surname, String id, Double balance) {
         this.name = name;
         this.surname = surname;
