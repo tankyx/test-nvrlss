@@ -170,7 +170,15 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         User sender = memory.getUser(request.getUserId());
         BigDecimal transactionAmount = BigDecimal.valueOf(request.getAmount());
 
-        memory.createTransactionWithAddress(transactionId, sender.getId(), request.getExternalAddress(), transactionAmount);
+        if (!memory.createTransactionWithAddress(transactionId, sender.getId(), request.getExternalAddress(), transactionAmount)) {
+            TransactionResponse response = TransactionResponse.newBuilder()
+                    .setTransactionId(transactionId)
+                    .setStatus("Failed to create transaction : Transaction already exists.")
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+            return;
+        }
 
         // If the sender balance is not sufficient, set the transaction state to FAILED
         if (sender.getBalance().compareTo(transactionAmount) < 0) {
