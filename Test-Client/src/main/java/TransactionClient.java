@@ -6,6 +6,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class TransactionClient {
@@ -13,6 +16,8 @@ public class TransactionClient {
     private final TransactionServiceGrpc.TransactionServiceStub asyncStub;
     private final AtomicLong latencyStart = new AtomicLong();
     private static CountDownLatch externalTransactionLatch;
+    private static final int TOTAL_USERS = 10000; // Adjust as needed
+    private static final int THREAD_COUNT = 10; // Adjust as needed
 
     public TransactionClient(ManagedChannel channel) {
         blockingStub = TransactionServiceGrpc.newBlockingStub(channel);
@@ -26,32 +31,40 @@ public class TransactionClient {
                 .build();
         TransactionClient client = new TransactionClient(channel);
 
-        externalTransactionLatch = new CountDownLatch(100);
+        // CountDownLatch for external transactions
+        externalTransactionLatch = new CountDownLatch(TOTAL_USERS);
 
-        // Create 100 users
-        for (int i = 1; i <= 100; i++) {
-            String userId = "U" + i;
-            client.addUser(userId, "User" + i, "Surname" + i, 1000.0);
+        // Create a thread pool
+        ExecutorService executorService = Executors.newFixedThreadPool(THREAD_COUNT);
+
+        // Create the users concurrently
+        for (int i = 1; i <= TOTAL_USERS; i++) {
+            final String userId = "U" + i;
+            int finalI = i;
+            executorService.submit(() -> {
+                client.addUser(userId, "User" + finalI, "Surname" + finalI, 1000.0);
+            });
         }
 
-        // For each user, perform valid and invalid internal transactions, and a valid external withdrawal
-        for (int i = 1; i <= 100; i++) {
-            String userId = "U" + i;
-            String recipientId = "U" + (i == 100 ? 1 : i + 1); // Rotate recipient for valid transaction
+        // Execute transactions concurrently
+        for (int i = 1; i <= TOTAL_USERS; i++) {
+            final String userId = "U" + i;
+            final String recipientId = "U" + (i == TOTAL_USERS ? 1 : i + 1); // Rotate recipient for valid transaction
 
-            // Valid Internal Transaction
-            String ValidIntTransactionId = client.sendMoneyInternally(userId, recipientId, 100.0);
-            client.streamTransactionStatus(ValidIntTransactionId);
+            // Perform transactions concurrently
+            executorService.submit(() -> {
+                // Valid Internal Transaction
+                String validIntTransactionId = client.sendMoneyInternally(userId, recipientId, 100.0);
+                client.streamTransactionStatus(validIntTransactionId);
 
-            // Invalid Internal Transaction (attempt to send more than balance)
-            String InvalidIntTransactionId = client.sendMoneyInternally(userId, recipientId, 5000.0);
-            client.streamTransactionStatus(InvalidIntTransactionId);
+                // Invalid Internal Transaction (attempt to send more than balance)
+                String invalidIntTransactionId = client.sendMoneyInternally(userId, recipientId, 5000.0);
+                client.streamTransactionStatus(invalidIntTransactionId);
 
-            // External Transaction
-            String ExtTransactionId = client.sendMoneyExternally(userId, 50.0, "external-address-" + UUID.randomUUID());
-
-            // Stream transaction status updates
-            client.streamTransactionStatus(ExtTransactionId);
+                // External Transaction
+                String extTransactionId = client.sendMoneyExternally(userId, 50.0, "external-address-" + UUID.randomUUID());
+                client.streamTransactionStatus(extTransactionId);
+            });
         }
 
         // Wait for all external transactions to complete
@@ -61,7 +74,14 @@ public class TransactionClient {
             System.err.println("Interrupted while waiting for external transactions to complete.");
         }
 
-        // Shut down the gRPC channel
+        // Shutdown the executor and the gRPC channel
+        executorService.shutdown();
+        try {
+            executorService.awaitTermination(5, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         channel.shutdown();
     }
 
