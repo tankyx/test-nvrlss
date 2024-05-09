@@ -9,7 +9,8 @@ option java_outer_classname = "TransactionServiceProto";
 message AddUserRequest {
   string name = 1;
   string surname = 2;
-  double balance = 3;
+  string id = 3;
+  double balance = 4;
 }
 // Response message for adding a user
 message AddUserResponse {

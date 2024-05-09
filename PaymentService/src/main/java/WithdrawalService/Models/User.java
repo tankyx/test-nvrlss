@@ -20,9 +20,6 @@ public class User {
     String surname;
     BigDecimal balance;
 
-    private void generateId() {
-        this.id = "user-" + this.name + "-" + this.surname;
-    }
     /*
     * Need to generate a wallet address for the user
     * using the generated id and using a unique salt to it
@@ -31,12 +28,12 @@ public class User {
     private void generateWalletAddress(String salt) {
         this.address = Base64.getEncoder().encodeToString((this.id + salt).getBytes());
     }
-    public User(String name, String surname, Double balance, String salt) {
+    public User(String name, String surname, String id, Double balance, String salt) {
         this.name = name;
         this.surname = surname;
         this.balance = BigDecimal.valueOf(balance);
+        this.id = id;
 
-        generateId();
         generateWalletAddress(salt);
     }
 
