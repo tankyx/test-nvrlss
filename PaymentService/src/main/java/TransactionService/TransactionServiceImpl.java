@@ -9,11 +9,23 @@ import com.TransactionProcess.grpc.*;
 import io.grpc.stub.StreamObserver;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
+
+/*
+    * TransactionServiceImpl
+    *
+    * TransactionServiceImpl extends TransactionServiceGrpc.TransactionServiceImplBase
+    *
+    * statusObservers - Map of transaction status observers
+    * memory - InMemory data store
+    * transactionCounter - AtomicLong to keep track of transaction count
+    * pendingUUIDs - ConcurrentHashMap of pending UUIDs
+    * withdrawalService - WithdrawalServiceStub
+    * scheduler - ScheduledExecutorService
+*/
 
 public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionServiceImplBase {
     private final Map<String, StreamObserver<StatusUpdate>> statusObservers = new ConcurrentHashMap<>();
@@ -45,6 +57,11 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         }
     }
 
+    /*
+        * Add user
+        * @param request - AddUserRequest
+        * @param responseObserver - StreamObserver<AddUserResponse>
+    */
     @Override
     public void addUser(AddUserRequest request, StreamObserver<AddUserResponse> responseObserver) {
         AddUserResponse response;
@@ -65,6 +82,12 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         responseObserver.onCompleted();
 
     }
+
+    /*
+        * Send money internally
+        * @param request - InternalTransferRequest
+        * @param responseObserver - StreamObserver<TransactionResponse>
+    */
     @Override
     public void sendMoneyInternally(InternalTransferRequest request, StreamObserver<TransactionResponse> responseObserver) {
         User sender = memory.getUser(request.getSenderId());
@@ -125,6 +148,11 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
 
     }
 
+    /*
+        * Send money externally
+        * @param request - ExternalWithdrawalRequest
+        * @param responseObserver - StreamObserver<TransactionResponse>
+    */
     @Override
     public void sendMoneyExternally(ExternalWithdrawalRequest request, StreamObserver<TransactionResponse> responseObserver) {
         String transactionId = "ETX" + transactionCounter.getAndIncrement();

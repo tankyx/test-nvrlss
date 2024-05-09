@@ -2,20 +2,25 @@ package WithdrawalService.DataStore;
 
 import WithdrawalService.Models.Transaction;
 import WithdrawalService.Models.User;
-import WithdrawalService.Utils.SaltGenerator;
 import WithdrawalService.WithdrawalService.WithdrawalState;
 
 import java.math.BigDecimal;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/*
+    * InMemory data store
+    *
+    * users - map of users
+    * transactions - map of transactions
+*/
+
 public class InMemory {
     private final ConcurrentMap<String, User> users = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Transaction> transactions = new ConcurrentHashMap<>();
 
     public void addUser(String name, String surname, String id, Double balance) {
-        String salt = SaltGenerator.generateUniqueSalt();
-        User user = new User(name, surname, id, balance, salt);
+        User user = new User(name, surname, id, balance);
 
         users.putIfAbsent(user.getId(), user);
     }
