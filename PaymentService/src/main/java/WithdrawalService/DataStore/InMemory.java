@@ -2,6 +2,7 @@ package WithdrawalService.DataStore;
 
 import WithdrawalService.Models.Transaction;
 import WithdrawalService.Models.User;
+import WithdrawalService.Utils.SaltGenerator;
 import WithdrawalService.WithdrawalService.WithdrawalState;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,7 +12,10 @@ public class InMemory {
     private final ConcurrentMap<String, User> users = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Transaction> transactions = new ConcurrentHashMap<>();
 
-    public void addUser(User user) {
+    public void addUser(String name, String surname, Double balance) {
+        String salt = SaltGenerator.generateUniqueSalt();
+        User user = new User(name, surname, balance, salt);
+
         users.putIfAbsent(user.getId(), user);
     }
 

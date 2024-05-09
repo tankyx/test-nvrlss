@@ -1,16 +1,31 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "com.example.grpc";
+option java_package = "com.TransactionProcess.grpc";
 option java_outer_classname = "TransactionServiceProto";
 
-message UserRequest {
+// Request to add a user to the in-memory data store
+
+message AddUserRequest {
+  string name = 1;
+  string surname = 2;
+  double balance = 3;
+}
+// Response message for adding a user
+message AddUserResponse {
   string userId = 1;
+  string status = 2;
+}
+
+// Request to transfer money between two internal users
+message InternalTransferRequest {
+  string senderId = 1;
   string recipientId = 2;
   double amount = 3;
 }
 
-message WithdrawRequest {
+// Request to withdraw money to an external address
+message ExternalWithdrawalRequest {
   string userId = 1;
   double amount = 2;
   string externalAddress = 3;
@@ -31,7 +46,8 @@ message StatusUpdate {
 }
 
 service TransactionService {
-  rpc SendMoney (UserRequest) returns (TransactionResponse);
-  rpc Withdraw (WithdrawRequest) returns (TransactionResponse);
+  rpc SendMoneyInternally (InternalTransferRequest) returns (TransactionResponse);
+  rpc SendMoneyExternally (ExternalWithdrawalRequest) returns (TransactionResponse);
   rpc StreamTransactionStatus (TransactionStatusRequest) returns (stream StatusUpdate);
+  rpc AddUser(AddUserRequest) returns (AddUserResponse);
 }

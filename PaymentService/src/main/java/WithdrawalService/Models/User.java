@@ -1,6 +1,7 @@
 package WithdrawalService.Models;
 
 import java.math.BigDecimal;
+import java.util.Base64;
 import java.util.Objects;
 
 /*
@@ -19,12 +20,24 @@ public class User {
     String surname;
     BigDecimal balance;
 
-    public User(String id, String address, String name, String surname, BigDecimal balance) {
-        this.id = id;
-        this.address = address;
+    private void generateId() {
+        this.id = "user-" + this.name + "-" + this.surname;
+    }
+    /*
+    * Need to generate a wallet address for the user
+    * using the generated id and using a unique salt to it
+    * and storing it as a base64 encoded string
+    */
+    private void generateWalletAddress(String salt) {
+        this.address = Base64.getEncoder().encodeToString((this.id + salt).getBytes());
+    }
+    public User(String name, String surname, Double balance, String salt) {
         this.name = name;
         this.surname = surname;
-        this.balance = balance;
+        this.balance = BigDecimal.valueOf(balance);
+
+        generateId();
+        generateWalletAddress(salt);
     }
 
     public String getId() {
