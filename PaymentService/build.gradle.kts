@@ -11,6 +11,7 @@ repositories {
 }
 
 dependencies {
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
     implementation("io.grpc:grpc-netty-shaded:1.57.2") // gRPC transport
     implementation("io.grpc:grpc-protobuf:1.57.2") // Protobuf support for gRPC
     implementation("io.grpc:grpc-stub:1.57.2") // gRPC stubs
