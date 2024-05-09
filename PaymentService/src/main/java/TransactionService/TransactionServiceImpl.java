@@ -1,7 +1,6 @@
 package TransactionService;
 
 import WithdrawalService.DataStore.InMemory;
-import WithdrawalService.Models.Transaction;
 import WithdrawalService.Models.User;
 import WithdrawalService.WithdrawalService;
 import WithdrawalService.WithdrawalServiceStub;
@@ -26,7 +25,7 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
 
     @Override
     public void addUser(AddUserRequest request, StreamObserver<AddUserResponse> responseObserver) {
-        AddUserResponse response = null;
+        AddUserResponse response;
 
         if (memory.userExists(request.getId())) {
             response = AddUserResponse.newBuilder()
@@ -50,7 +49,7 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         User recipient = memory.getUser(request.getRecipientId());
         String transactionId = "TX" + transactionCounter.getAndIncrement();
 
-        //Both users exists
+        //Both users exist
         if (sender != null && recipient != null) {
             BigDecimal transactionAmount = BigDecimal.valueOf(request.getAmount());
             if (!memory.createTransaction(transactionId, sender.getId(), recipient.getId(), transactionAmount)) {
@@ -58,6 +57,8 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
                         .setTransactionId(transactionId)
                         .setStatus("Failed to create transaction : Transaction already exists.")
                         .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
             }
 
             // If the sender balance is not sufficient, set the transaction state to FAILED
@@ -155,7 +156,10 @@ public class TransactionServiceImpl extends TransactionServiceGrpc.TransactionSe
         StreamObserver<StatusUpdate> observer = statusObservers.get(transactionId);
         if (observer != null) {
             observer.onNext(update);
-            observer.onCompleted();
+            if ("COMPLETED".equals(status) || "FAILED".equals(status)) {
+                observer.onCompleted();
+                statusObservers.remove(transactionId);
+            }
         }
     }
 }

@@ -46,12 +46,11 @@ public class InMemory {
         return transactions.get(id);
     }
 
-    public boolean changeTransactionState(String id, WithdrawalState state) {
+    public void changeTransactionState(String id, WithdrawalState state) {
         Transaction transaction = transactions.get(id);
         if (transaction == null) {
-            return false;
+            return;
         }
         transaction.setState(state);
-        return true;
     }
 }
